@@ -1,0 +1,12 @@
+fileFormatVersion: 2
+guid: 3a15937ac5f4421997dec111705d6d02
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - CMAA2Compute: {fileID: 7200000, guid: bdca705f137f466380668861f6afe032, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

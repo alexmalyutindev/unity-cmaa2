@@ -193,6 +193,18 @@ Texture2D<lpfloat4>             g_inoutColorReadonly                : register( 
 Texture2D<float>                g_inLumaReadonly                    : register( t3 );
 #endif
 
+#if SHADER_API_METAL
+#define BUFFER_DIMENSION(buffer) uint2 buffer##_Dim
+#define GET_BUFFER_DIMENSIONS(buffer, count, stride) \
+    count = buffer##_Dim.x; \
+    stride = buffer##_Dim.y;
+#else
+#define BUFFER_DIMENSION(buffer)
+#define GET_BUFFER_DIMENSIONS(buffer, count, stride) buffer.GetDimensions(count, stride)
+#endif
+
+BUFFER_DIMENSION(g_workingShapeCandidates);
+BUFFER_DIMENSION(g_workingDeferredBlendLocationList);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // encoding/decoding of various data such as edges
@@ -860,7 +872,7 @@ void ComputeDispatchArgsCS( uint3 groupID : SV_GroupID )
 
         // check for overflow!
         uint appendBufferMaxCount; uint appendBufferStride;
-        g_workingShapeCandidates.GetDimensions( appendBufferMaxCount, appendBufferStride );
+        GET_BUFFER_DIMENSIONS(g_workingShapeCandidates, appendBufferMaxCount, appendBufferStride);
         shapeCandidateCount = min( shapeCandidateCount, appendBufferMaxCount );
 
         // write dispatch indirect arguments for ProcessCandidatesCS
@@ -880,7 +892,7 @@ void ComputeDispatchArgsCS( uint3 groupID : SV_GroupID )
         // check for overflow!
         { 
             uint appendBufferMaxCount; uint appendBufferStride;
-            g_workingDeferredBlendLocationList.GetDimensions( appendBufferMaxCount, appendBufferStride );
+            GET_BUFFER_DIMENSIONS(g_workingDeferredBlendLocationList, appendBufferMaxCount, appendBufferStride);
             blendLocationCount = min( blendLocationCount, appendBufferMaxCount );
         }
 
@@ -1448,7 +1460,7 @@ void DebugDrawEdgesCS( uint2 dispatchThreadID : SV_DispatchThreadID )
 
     //if( any(edges) )
     {
-        lpfloat4 outputColor = lpfloat4( lerp( edges.xyz, 0.5.xxx, edges.a * 0.2 ), 1.0 );
+        lpfloat4 outputColor = lpfloat4( lerp( edges.xyz, (0.5).xxx, edges.a * 0.2 ), 1.0 );
         FinalUAVStore( dispatchThreadID, outputColor.rgb );
     }
 

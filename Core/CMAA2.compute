@@ -1,3 +1,22 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright 2025, Alex Malyutin
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// This file is a Unity-compatible port of Intel’s CMAA2 (Conservative Morphological Anti-Aliasing)
+// originally developed and distributed by Intel Corporation under the Apache 2.0 license.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define CMAA2_UAV_STORE_TYPED               1   // use typed UAV store
 #define CMAA2_UAV_STORE_CONVERT_TO_SRGB     0   // no need to convert to SRGB - R11G11B10_FLOAT does not use SRGB encoding
 #define CMAA2_UAV_STORE_TYPED_UNORM_FLOAT   0   // not required for non-float semantics correctness (RWTexture2D<float4>)
@@ -5,8 +24,8 @@
 #include "CMAA2.hlsl"
 
 #pragma kernel EdgesColor2x2CS
-// TODO:
-// #pragma kernel ComputeDispatchArgsCS
-#pragma kernel ProcessCandidatesCS
 #pragma kernel ComputeDispatchArgsCS
-#pragma kernel DeferredColorApply2x2CS
+// TODO:
+// #pragma kernel ProcessCandidatesCS
+// #pragma kernel ComputeDispatchArgsCS
+// #pragma kernel DeferredColorApply2x2CS
