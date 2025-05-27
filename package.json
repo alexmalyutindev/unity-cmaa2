@@ -1,0 +1,8 @@
+{
+  "name": "com.alexmalyutindev.cmaa2",
+  "version": "1.0.0",
+  "displayName": "CMAA2",
+  "dependencies": {
+    "com.unity.render-pipelines.universal": "17.1.0"
+  }
+}
