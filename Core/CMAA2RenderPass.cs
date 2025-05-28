@@ -22,14 +22,18 @@ namespace CMAA2.Core
             public CMAA2Compute Compute;
             public TextureHandle FrameColor;
 
+            // EdgesColor2x2CS
             public TextureHandle WorkingEdges; // RWTexture2D<uint> : u1
             public BufferHandle WorkingShapeCandidates; // RWStructuredBuffer<uint> : u2
-            public TextureHandle WorkingDeferredBlendItemListHeads; // RWTexture2D<uint> : u5
+            public AtomicTextureHandle WorkingDeferredBlendItemListHeads; // [RWTexture2D|RWStructuredBuffer]<uint> : u5
             public BufferHandle WorkingControlBuffer; // RWByteAddressBuffer : u6
-            
-            // Kernel 2
-            public BufferHandle WorkingDeferredBlendLocationList;
-            public BufferHandle WorkingExecuteIndirectBuffer;
+
+            // ComputeDispatchArgsCS
+            public BufferHandle WorkingDeferredBlendLocationList; // RWStructuredBuffer<uint> : u3
+            public BufferHandle WorkingExecuteIndirectBuffer; // RWByteAddressBuffer : u7
+
+            // ProcessCandidatesCS
+            public BufferHandle WorkingDeferredBlendItemList; // RWStructuredBuffer : u4
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -41,67 +45,102 @@ namespace CMAA2.Core
             var resX = targetDesc.width;
             var resY = targetDesc.height;
 
-            using var builder = renderGraph.AddComputePass<PassData>("CMAA2", out var passData);
+            using var builder = renderGraph.AddComputePass<PassData>(passName: "CMAA2", passData: out var passData);
             passData.Compute = _compute;
 
-            builder.UseTexture(resourceData.cameraColor);
+            builder.UseTexture(input: resourceData.cameraColor);
             passData.FrameColor = resourceData.cameraColor;
 
-            var uintUAVTextureDesc = new TextureDesc(resX, resY)
+            var uintUAVTextureDesc = new TextureDesc(width: resX, height: resY)
             {
                 format = GraphicsFormat.R8_UInt,
                 enableRandomWrite = true,
             };
-            passData.WorkingEdges = builder.CreateTransientTexture(in uintUAVTextureDesc);
-            passData.WorkingDeferredBlendItemListHeads = builder.CreateTransientTexture(in uintUAVTextureDesc);
+            passData.WorkingEdges = builder.CreateTransientTexture(desc: in uintUAVTextureDesc);
+            passData.WorkingDeferredBlendItemListHeads = AtomicTextureHandle.CreateTransientUint(
+                builder,
+                uintUAVTextureDesc.width,
+                uintUAVTextureDesc.height
+            );
 
             // Bufers
             int requiredCandidatePixels = resX * resY / 4 * m_TextureSampleCount;
             int requiredDeferredColorApplyBuffer = resX * resY / 2 * m_TextureSampleCount;
-            int requiredListHeadsPixels = ( resX * resY + 3 ) / 6;
-            
+            int requiredListHeadsPixels = (resX * resY + 3) / 6;
+
             // Create buffer for storing a list of all pixel candidates to process (potential AA shapes, both simple and complex)
             {
-                var desc = new BufferDesc(requiredCandidatePixels, sizeof(uint), GraphicsBuffer.Target.Structured);
-                passData.WorkingShapeCandidates = builder.CreateTransientBuffer(in desc);
+                var desc = new BufferDesc(
+                    count: requiredCandidatePixels,
+                    stride: sizeof(uint),
+                    target: GraphicsBuffer.Target.Structured);
+                passData.WorkingShapeCandidates = builder.CreateTransientBuffer(desc: in desc);
             }
 
             // Create buffer for storing a list of coordinates of linked list heads quads, to allow for combined processing in the last step
             {
-                var desc = new BufferDesc(requiredListHeadsPixels, sizeof(uint), GraphicsBuffer.Target.Structured);
-                passData.WorkingDeferredBlendLocationList = builder.CreateTransientBuffer(desc);
+                var desc = new BufferDesc(
+                    count: requiredListHeadsPixels,
+                    stride: sizeof(uint),
+                    target: GraphicsBuffer.Target.Structured);
+                passData.WorkingDeferredBlendLocationList = builder.CreateTransientBuffer(desc: desc);
             }
-            
+
             // Control buffer (always the same size, doesn't need re-creating but oh well)
             {
-                var desc = new BufferDesc(16, sizeof(uint), GraphicsBuffer.Target.Raw);
-                passData.WorkingControlBuffer = builder.CreateTransientBuffer(in desc);
+                var desc = new BufferDesc(count: 16, stride: sizeof(uint), target: GraphicsBuffer.Target.Raw);
+                passData.WorkingControlBuffer = builder.CreateTransientBuffer(desc: in desc);
             }
 
             {
-                var desc = new BufferDesc(4, sizeof(uint), GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments);
-                passData.WorkingExecuteIndirectBuffer = builder.CreateTransientBuffer(in desc);
+                var desc = new BufferDesc(
+                    count: 4,
+                    stride: sizeof(uint),
+                    target: GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments);
+                passData.WorkingExecuteIndirectBuffer = builder.CreateTransientBuffer(desc: in desc);
             }
 
-            builder.AllowPassCulling(false);
-            builder.SetRenderFunc<PassData>(static (data, context) =>
+            // Create buffer for storing linked list of all output values to blend
             {
-                data.Compute.EdgesColor2x2CS(
-                    cmd: context.cmd,
-                    inColor: data.FrameColor,
-                    workingEdges: data.WorkingEdges,
-                    workingShapeCandidates: data.WorkingShapeCandidates,
-                    workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
-                    workingControlBuffer: data.WorkingControlBuffer
+                var desc = new BufferDesc(
+                    requiredDeferredColorApplyBuffer,
+                    sizeof(uint) * 2,
+                    GraphicsBuffer.Target.Structured
                 );
+                passData.WorkingDeferredBlendItemList = builder.CreateTransientBuffer(desc);
+            }
 
-                data.Compute.ComputeDispatchArgsCS(
-                    cmd: context.cmd,
-                    workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
-                    data.WorkingControlBuffer,
-                    data.WorkingExecuteIndirectBuffer
-                );
-            });
+            builder.AllowPassCulling(value: false);
+            builder.SetRenderFunc<PassData>(
+                renderFunc: static (data, context) =>
+                {
+                    data.Compute.EdgesColor2x2CS(
+                        cmd: context.cmd,
+                        inColor: data.FrameColor,
+                        workingEdges: data.WorkingEdges,
+                        workingShapeCandidates: data.WorkingShapeCandidates,
+                        workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
+                        workingControlBuffer: data.WorkingControlBuffer
+                    );
+
+                    data.Compute.ComputeDispatchArgsCS(
+                        cmd: context.cmd,
+                        workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
+                        workingControlBuffer: data.WorkingControlBuffer,
+                        workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer
+                    );
+
+                    data.Compute.ProcessCandidatesCS(
+                        cmd: context.cmd,
+                        inColor: data.FrameColor,
+                        workingEdges: data.WorkingEdges,
+                        workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
+                        workingControlBuffer: data.WorkingControlBuffer,
+                        workingDeferredBlendItemList: data.WorkingDeferredBlendItemList,
+                        workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
+                        workingShapeCandidates: data.WorkingShapeCandidates
+                    );
+                });
         }
     }
 }

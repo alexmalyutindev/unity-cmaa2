@@ -178,7 +178,12 @@ RWTexture2D<uint>               g_workingEdges                      : register( 
 RWStructuredBuffer<uint>        g_workingShapeCandidates            : register( u2 );
 RWStructuredBuffer<uint>        g_workingDeferredBlendLocationList  : register( u3 );
 RWStructuredBuffer<uint2>       g_workingDeferredBlendItemList      : register( u4 );       // 
+#ifndef SHADER_API_METAL
 RWTexture2D<uint>               g_workingDeferredBlendItemListHeads : register( u5 );
+#else // NOTE: Metal doesn't support texture atomics! Using StructuredBuffer instead.
+RWStructuredBuffer<uint>        g_workingDeferredBlendItemListHeads : register( u5 );
+uint2                           g_workingDeferredBlendItemListHeads_Size;
+#endif
 RWByteAddressBuffer             g_workingControlBuffer              : register( u6 );
 RWByteAddressBuffer             g_workingExecuteIndirectBuffer      : register( u7 );
 
@@ -252,7 +257,11 @@ lpfloat3 LoadSourceColor( uint2 pixelPos, int2 offset, int sampleIndex )
 #if CMAA_MSAA_SAMPLE_COUNT > 1
     lpfloat3 color = g_inColorMSReadonly.Load( int4( pixelPos, sampleIndex, 0 ), offset ).rgb;
 #else
+#ifndef SHADER_API_METAL
     lpfloat3 color = g_inoutColorReadonly.Load( int3( pixelPos, 0 ), offset ).rgb;
+#else
+    lpfloat3 color = g_inoutColorReadonly.Load( int3( pixelPos + offset, 0 ) ).rgb;
+#endif
 #endif
     return color;
 }
@@ -354,7 +363,14 @@ void StoreColorSample( uint2 pixelPos, lpfloat3 color, bool isComplexShape, uint
     uint counterIndexWithHeader = counterIndex | header;
 
     uint originalIndex;
+    #ifndef SHADER_API_METAL
     InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPos ], counterIndexWithHeader, originalIndex );
+    #else
+    // TODO: Make compatible with Unity's Metal target.
+    // RWStructuredBuffer<uint> g_workingDeferredBlendItemListHeads;
+    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Size.x;
+    InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPosFlat ], counterIndexWithHeader, originalIndex );
+    #endif
     g_workingDeferredBlendItemList[counterIndex] = uint2( originalIndex, InternalPackColor( color ) );
 
     // First one added?
@@ -738,7 +754,12 @@ void EdgesColor2x2CS( uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_Group
     #if CMAA_MSAA_SAMPLE_COUNT == 1
                 // Clear deferred color list heads to empty (if potentially needed - even though some edges might get culled by local contrast adaptation 
                 // step below, it's still cheaper to just clear it without additional logic)
+            #ifndef SHADER_API_METAL
                 g_workingDeferredBlendItemListHeads[ uint2( pixelPos ) / 2 ] = 0xFFFFFFFF;
+            #else
+                uint quadPosFlat = pixelPos.x / 2 + pixelPos.y / 2 * g_workingDeferredBlendItemListHeads_Size.x;
+                g_workingDeferredBlendItemListHeads[ quadPosFlat ] = 0xFFFFFFFF;
+            #endif 
     #endif
 
                 lpfloat4 ce[4];
@@ -1349,7 +1370,12 @@ void DeferredColorApply2x2CS( uint3 dispatchThreadID : SV_DispatchThreadID, uint
     const int2 qeOffsets[4] = { {0, 0}, {1, 0}, {0, 1}, {1, 1} };
     uint2 pixelPos  = quadPos*2+qeOffsets[currentQuadOffsetXY];
 
+#ifndef SHADER_API_METAL
     uint counterIndexWithHeader = g_workingDeferredBlendItemListHeads[quadPos];
+#else
+    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Size.x;
+    uint counterIndexWithHeader = g_workingDeferredBlendItemListHeads[quadPosFlat];
+#endif
 
     int counter = 0;
 

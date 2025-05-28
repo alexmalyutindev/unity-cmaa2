@@ -25,7 +25,7 @@
 
 #pragma kernel EdgesColor2x2CS
 #pragma kernel ComputeDispatchArgsCS
+#pragma kernel ProcessCandidatesCS
 // TODO:
-// #pragma kernel ProcessCandidatesCS
 // #pragma kernel ComputeDispatchArgsCS
 // #pragma kernel DeferredColorApply2x2CS
