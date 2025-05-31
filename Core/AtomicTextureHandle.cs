@@ -32,6 +32,7 @@ namespace CMAA2.Core
 #if TEXTURE_ATOMIC_NOT_SUPPORTED
             var desc = new BufferDesc(width * height, sizeof(uint), GraphicsBuffer.Target.Structured);
             handle.Handle = builder.CreateTransientBuffer(desc);
+            builder.UseBuffer(handle.Handle, AccessFlags.ReadWrite);
 #else
             var desc = new TextureDesc(width, height)
             {
@@ -39,6 +40,7 @@ namespace CMAA2.Core
                 enableRandomWrite = true,
             };
             handle.Handle = builder.CreateTransientTexture(desc);
+            builder.UseTexture(handle.Handle, AccessFlags.ReadWrite);
 #endif
             return handle;
         }
