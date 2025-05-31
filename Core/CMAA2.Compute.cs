@@ -31,7 +31,7 @@ namespace CMAA2.Core
             TextureHandle inColorTexture,
             Vector2Int textureResolution,
             TextureHandle workingEdges,
-            BufferHandle workingShapeCandidates,
+            SizedBufferHandle workingShapeCandidates,
             AtomicTextureHandle workingDeferredBlendItemListHeads,
             BufferHandle workingControlBuffer
         )
@@ -44,7 +44,9 @@ namespace CMAA2.Core
             Bind(cmd, kernelId, "g_inoutColorReadonly", inColorTexture);
             Bind(cmd, kernelId, "g_workingEdges", workingEdges);
 
-            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
+            Bind(cmd, "g_workingShapeCandidates_Dim", workingShapeCandidates.Dimensions);
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates.Buffer);
+
             Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
 
             Bind(cmd, "g_workingDeferredBlendItemListHeads_Width", workingDeferredBlendItemListHeads.Width);
@@ -65,10 +67,8 @@ namespace CMAA2.Core
             int threadGroupsX,
             int threadGroupsY,
             BufferHandle workingControlBuffer,
-            BufferHandle workingDeferredBlendLocationList,
-            int workingDeferredBlendLocationListSize,
-            BufferHandle workingShapeCandidates,
-            int workingShapeCandidatesSize,
+            SizedBufferHandle workingDeferredBlendLocationList,
+            SizedBufferHandle workingShapeCandidates,
             BufferHandle workingExecuteIndirectBuffer
         )
         {
@@ -80,12 +80,12 @@ namespace CMAA2.Core
             Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
 
             // TODO: Remove passing unnecessary vectors!
-            Bind(cmd, "g_workingDeferredBlendLocationList_Dim", new Vector4(workingDeferredBlendLocationListSize, 0));
-            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+            Bind(cmd, "g_workingDeferredBlendLocationList_Dim", workingDeferredBlendLocationList.Dimensions);
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList.Buffer);
 
             // TODO: Remove passing unnecessary vectors!
-            Bind(cmd, "g_workingShapeCandidates_Dim", new Vector4(workingShapeCandidatesSize, 0));
-            Bind(cmd, kernelId, "g_workingShapeCandidates", workingExecuteIndirectBuffer);
+            Bind(cmd, "g_workingShapeCandidates_Dim", workingShapeCandidates.Dimensions);
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates.Buffer);
 
             // Out
             Bind(cmd, kernelId, "g_workingExecuteIndirectBuffer", workingExecuteIndirectBuffer);
@@ -111,8 +111,8 @@ namespace CMAA2.Core
             AtomicTextureHandle workingDeferredBlendItemListHeads,
             BufferHandle workingControlBuffer,
             BufferHandle workingDeferredBlendItemList,
-            BufferHandle workingShapeCandidates,
-            BufferHandle workingDeferredBlendLocationList
+            SizedBufferHandle workingShapeCandidates,
+            SizedBufferHandle workingDeferredBlendLocationList
         )
         {
             int kernelId = _processCandidatesCS;
@@ -129,8 +129,12 @@ namespace CMAA2.Core
 
             Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
             Bind(cmd, kernelId, "g_workingDeferredBlendItemList", workingDeferredBlendItemList);
-            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
-            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
+
+            Bind(cmd, "g_workingDeferredBlendLocationList_Dim", workingDeferredBlendLocationList.Dimensions);
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList.Buffer);
+
+            Bind(cmd, "g_workingShapeCandidates_Dim", workingShapeCandidates.Dimensions);
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates.Buffer);
 
             // TODO: ThreadGroups count!
             // cmd.DispatchCompute(_compute, kernelId, 1, 1, 1);
@@ -145,7 +149,7 @@ namespace CMAA2.Core
             BufferHandle workingControlBuffer,
             BufferHandle workingDeferredBlendItemList,
             AtomicTextureHandle workingDeferredBlendItemListHeads,
-            BufferHandle workingDeferredBlendLocationList
+            SizedBufferHandle workingDeferredBlendLocationList
         )
         {
             var kernelId = _deferredColorApply2x2CS;
@@ -161,7 +165,9 @@ namespace CMAA2.Core
             Bind(cmd, "g_workingDeferredBlendItemListHeads_Width", workingDeferredBlendItemListHeads.Width);
             workingDeferredBlendItemListHeads.Bind(cmd, _compute, kernelId, "g_workingDeferredBlendItemListHeads");
 
-            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+            Bind(cmd, "g_workingDeferredBlendLocationList_Dim", workingDeferredBlendLocationList.Dimensions);
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList.Buffer);
+
             cmd.DispatchCompute(_compute, kernelId, workingExecuteIndirectBuffer, 0);
 
             cmd.EndSample(sampleName);

@@ -26,11 +26,9 @@ namespace CMAA2.Core
             public Vector2Int FrameBufferSize;
             public TextureHandle ColorBackBuffer; // RWTexture2D<float4> : u0
             public TextureHandle WorkingEdges; // RWTexture2D<uint> : u1
-            public int WorkingShapeCandidatesSize;
-            public BufferHandle WorkingShapeCandidates; // RWStructuredBuffer<uint> : u2
-            public BufferHandle WorkingDeferredBlendLocationList; // RWStructuredBuffer<uint> : u3
+            public SizedBufferHandle WorkingShapeCandidates; // RWStructuredBuffer<uint> : u2
+            public SizedBufferHandle WorkingDeferredBlendLocationList; // RWStructuredBuffer<uint> : u3
             public BufferHandle WorkingDeferredBlendItemList; // RWStructuredBuffer<uint2> : u4
-            public int WorkingDeferredBlendItemListHeadsSize;
             public AtomicTextureHandle WorkingDeferredBlendItemListHeads; // [RWTexture2D|RWStructuredBuffer]<uint> : u5
             public BufferHandle WorkingControlBuffer; // RWByteAddressBuffer : u6
             public BufferHandle WorkingExecuteIndirectBuffer; // RWByteAddressBuffer : u7
@@ -101,8 +99,10 @@ namespace CMAA2.Core
                     stride: sizeof(uint),
                     target: GraphicsBuffer.Target.Structured
                 );
-                passData.WorkingShapeCandidatesSize = requiredCandidatePixels;
-                passData.WorkingShapeCandidates = builder.CreateTransientBuffer(desc: in desc);
+                passData.WorkingShapeCandidates = new SizedBufferHandle(
+                    builder.CreateTransientBuffer(desc: in desc),
+                    desc.count
+                );
             }
 
             // Create buffer for storing linked list of all output values to blend
@@ -122,7 +122,10 @@ namespace CMAA2.Core
                     stride: sizeof(uint),
                     target: GraphicsBuffer.Target.Structured
                 );
-                passData.WorkingDeferredBlendLocationList = builder.CreateTransientBuffer(desc: desc);
+                passData.WorkingDeferredBlendLocationList = new SizedBufferHandle(
+                    builder.CreateTransientBuffer(desc),
+                    desc.count
+                );
             }
 
             // Control buffer (always the same size, doesn't need re-creating but oh well)
@@ -166,10 +169,9 @@ namespace CMAA2.Core
                 threadGroupsY: 1,
                 workingShapeCandidates: data.WorkingShapeCandidates,
                 workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
-                workingDeferredBlendLocationListSize: data.WorkingDeferredBlendItemListHeadsSize,
                 workingControlBuffer: data.WorkingControlBuffer,
-                workingShapeCandidatesSize: data.WorkingShapeCandidatesSize,
-                workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer);
+                workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer
+            );
 
             // Process shape candidates DispatchIndirect
             data.Compute.ProcessCandidatesCS(
@@ -181,7 +183,8 @@ namespace CMAA2.Core
                 workingControlBuffer: data.WorkingControlBuffer,
                 workingDeferredBlendItemList: data.WorkingDeferredBlendItemList,
                 workingShapeCandidates: data.WorkingShapeCandidates,
-                workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList);
+                workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList
+            );
 
             // Set up for the second DispatchIndirect
             data.Compute.ComputeDispatchArgsCS(
@@ -190,10 +193,9 @@ namespace CMAA2.Core
                 threadGroupsY: 2,
                 workingShapeCandidates: data.WorkingShapeCandidates,
                 workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
-                workingDeferredBlendLocationListSize: data.WorkingDeferredBlendItemListHeadsSize,
                 workingControlBuffer: data.WorkingControlBuffer,
-                workingShapeCandidatesSize: data.WorkingShapeCandidatesSize,
-                workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer);
+                workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer
+            );
 
             // Resolve & apply blended colors
             data.Compute.DeferredColorApply2x2CS(
@@ -203,9 +205,24 @@ namespace CMAA2.Core
                 workingControlBuffer: data.WorkingControlBuffer,
                 workingDeferredBlendItemList: data.WorkingDeferredBlendItemList,
                 workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
-                workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList);
+                workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList
+            );
 
             nativeCmd.Blit(data.ColorBackBuffer, data.ActualFrameColor);
+        }
+    }
+
+    public struct SizedBufferHandle
+    {
+        public Vector4 Dimensions => new Vector4(Size, 0);
+
+        public readonly int Size;
+        public readonly BufferHandle Buffer;
+
+        public SizedBufferHandle(BufferHandle bufferHandle, int size)
+        {
+            Buffer = bufferHandle;
+            Size = size;
         }
     }
 }
