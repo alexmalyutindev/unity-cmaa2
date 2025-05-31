@@ -182,7 +182,7 @@ RWStructuredBuffer<uint2>       g_workingDeferredBlendItemList      : register( 
 RWTexture2D<uint>               g_workingDeferredBlendItemListHeads : register( u5 );
 #else // NOTE: Metal doesn't support texture atomics! Using StructuredBuffer instead.
 RWStructuredBuffer<uint>        g_workingDeferredBlendItemListHeads : register( u5 );
-uint2                           g_workingDeferredBlendItemListHeads_Size;
+float2                          g_workingDeferredBlendItemListHeads_Size;
 #endif
 RWByteAddressBuffer             g_workingControlBuffer              : register( u6 );
 RWByteAddressBuffer             g_workingExecuteIndirectBuffer      : register( u7 );
@@ -199,7 +199,7 @@ Texture2D<float>                g_inLumaReadonly                    : register( 
 #endif
 
 #if SHADER_API_METAL
-#define BUFFER_DIMENSION(buffer) uint2 buffer##_Dim
+#define BUFFER_DIMENSION(buffer) float2 buffer##_Dim
 #define GET_BUFFER_DIMENSIONS(buffer, count, stride) \
     count = buffer##_Dim.x; \
     stride = buffer##_Dim.y;
@@ -366,8 +366,6 @@ void StoreColorSample( uint2 pixelPos, lpfloat3 color, bool isComplexShape, uint
     #ifndef SHADER_API_METAL
     InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPos ], counterIndexWithHeader, originalIndex );
     #else
-    // TODO: Make compatible with Unity's Metal target.
-    // RWStructuredBuffer<uint> g_workingDeferredBlendItemListHeads;
     uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Size.x;
     InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPosFlat ], counterIndexWithHeader, originalIndex );
     #endif

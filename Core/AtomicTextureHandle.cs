@@ -4,6 +4,7 @@
 
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 
 namespace CMAA2.Core
@@ -20,7 +21,7 @@ namespace CMAA2.Core
         public TextureHandle Handle;
 #endif
 
-        public static AtomicTextureHandle CreateTransientUint(IComputeRenderGraphBuilder builder, int width, int height)
+        public static AtomicTextureHandle CreateTransientUint(IBaseRenderGraphBuilder builder, int width, int height)
         {
             var handle = new AtomicTextureHandle()
             {
@@ -40,6 +41,15 @@ namespace CMAA2.Core
             handle.Handle = builder.CreateTransientTexture(desc);
 #endif
             return handle;
+        }
+
+        public void Bind(IComputeCommandBuffer cmd, ComputeShader compute, int kernelIndex, string name)
+        {
+#if TEXTURE_ATOMIC_NOT_SUPPORTED
+            cmd.SetComputeBufferParam(compute, kernelIndex, name, Handle);
+#else
+            cmd.SetComputeTextureParam(compute, kernelIndex, name, Handle);
+#endif
         }
     }
 }

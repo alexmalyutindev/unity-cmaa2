@@ -62,8 +62,11 @@ namespace CMAA2.Core
             IComputeCommandBuffer cmd,
             int threadGroupsX,
             int threadGroupsY,
-            BufferHandle workingDeferredBlendLocationList,
             BufferHandle workingControlBuffer,
+            BufferHandle workingDeferredBlendLocationList,
+            int workingDeferredBlendLocationListSize,
+            BufferHandle workingShapeCandidates,
+            int workingShapeCandidatesSize,
             BufferHandle workingExecuteIndirectBuffer
         )
         {
@@ -72,10 +75,17 @@ namespace CMAA2.Core
 
             cmd.BeginSample(sampleName);
 
-            // TODO: Get size and stride!
-            cmd.SetComputeVectorParam(_compute, "g_workingDeferredBlendLocationList_Dim", new Vector4());
-            Set(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
             Set(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+
+            // TODO: Remove passing unnecessary vectors!
+            Set(cmd, "g_workingDeferredBlendLocationList_Dim", new Vector4(workingDeferredBlendLocationListSize, 0));
+            Set(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+
+            // TODO: Remove passing unnecessary vectors!
+            Set(cmd, "g_workingShapeCandidates_Dim", new Vector4(workingShapeCandidatesSize, 0));
+            Set(cmd, kernelId, "g_workingShapeCandidates", workingExecuteIndirectBuffer);
+
+            // Out
             Set(cmd, kernelId, "g_workingExecuteIndirectBuffer", workingExecuteIndirectBuffer);
 
             // TODO: ThreadGroups count!

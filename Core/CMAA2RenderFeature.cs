@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 namespace CMAA2.Core
@@ -8,7 +10,7 @@ namespace CMAA2.Core
         public ComputeShader CMAA2Compute;
 
         private CMAA2RenderPass _pass;
-        
+
         public override void Create()
         {
             _pass = new CMAA2RenderPass(CMAA2Compute)
