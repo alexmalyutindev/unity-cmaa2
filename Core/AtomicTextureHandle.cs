@@ -10,6 +10,8 @@ namespace CMAA2.Core
 {
     public struct AtomicTextureHandle
     {
+        public Vector4 Size => new Vector4(Width, Height);
+
         public int Width;
         public int Height;
 #if TEXTURE_ATOMIC_NOT_SUPPORTED

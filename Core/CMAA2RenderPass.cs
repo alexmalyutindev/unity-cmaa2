@@ -20,6 +20,8 @@ namespace CMAA2.Core
         private class PassData
         {
             public CMAA2Compute Compute;
+
+            public Vector2Int FrameBufferSize;
             public TextureHandle FrameColor;
 
             // EdgesColor2x2CS
@@ -34,6 +36,9 @@ namespace CMAA2.Core
 
             // ProcessCandidatesCS
             public BufferHandle WorkingDeferredBlendItemList; // RWStructuredBuffer : u4
+
+            // DeferredColorApply2x2CS
+            public TextureHandle OutColor;
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -48,8 +53,18 @@ namespace CMAA2.Core
             using var builder = renderGraph.AddComputePass<PassData>(passName: "CMAA2", passData: out var passData);
             passData.Compute = _compute;
 
+            passData.FrameBufferSize = new Vector2Int(resX, resY);
             builder.UseTexture(input: resourceData.cameraColor);
             passData.FrameColor = resourceData.cameraColor;
+
+            var tempTargetDesc = new TextureDesc(targetDesc.width, targetDesc.height)
+            {
+                enableRandomWrite = true,
+                colorFormat = GraphicsFormatUtility.GetGraphicsFormat(
+                    RenderTextureFormat.RGB565,
+                    RenderTextureReadWrite.Linear)
+            };
+            passData.OutColor = builder.CreateTransientTexture(tempTargetDesc);
 
             var uintUAVTextureDesc = new TextureDesc(width: resX, height: resY)
             {
@@ -92,6 +107,7 @@ namespace CMAA2.Core
                 passData.WorkingControlBuffer = builder.CreateTransientBuffer(desc: in desc);
             }
 
+            // Control buffer (always the same size, doesn't need re-creating but oh well)
             {
                 var desc = new BufferDesc(
                     count: 4,
@@ -114,31 +130,59 @@ namespace CMAA2.Core
             builder.SetRenderFunc<PassData>(
                 renderFunc: static (data, context) =>
                 {
+                    // first pass edge detect
                     data.Compute.EdgesColor2x2CS(
                         cmd: context.cmd,
-                        inColor: data.FrameColor,
+                        inColorTexture: data.FrameColor,
+                        textureResolution: data.FrameBufferSize,
                         workingEdges: data.WorkingEdges,
                         workingShapeCandidates: data.WorkingShapeCandidates,
                         workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
                         workingControlBuffer: data.WorkingControlBuffer
                     );
 
+                    // Set up for the first DispatchIndirect
                     data.Compute.ComputeDispatchArgsCS(
                         cmd: context.cmd,
+                        threadGroupsX:2,
+                        threadGroupsY:1,
                         workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
                         workingControlBuffer: data.WorkingControlBuffer,
                         workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer
                     );
 
+                    // Process shape candidates DispatchIndirect
                     data.Compute.ProcessCandidatesCS(
                         cmd: context.cmd,
+                        workingExecuteDirectBuffer: data.WorkingExecuteIndirectBuffer,
                         inColor: data.FrameColor,
                         workingEdges: data.WorkingEdges,
                         workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
                         workingControlBuffer: data.WorkingControlBuffer,
                         workingDeferredBlendItemList: data.WorkingDeferredBlendItemList,
+                        workingShapeCandidates: data.WorkingShapeCandidates,
+                        workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList
+                    );
+                    
+                    // Set up for the second DispatchIndirect
+                    data.Compute.ComputeDispatchArgsCS(
+                        cmd: context.cmd,
+                        threadGroupsX:1,
+                        threadGroupsY:2,
                         workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList,
-                        workingShapeCandidates: data.WorkingShapeCandidates
+                        workingControlBuffer: data.WorkingControlBuffer,
+                        workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer
+                    );
+
+                    // Resolve & apply blended colors
+                    data.Compute.DeferredColorApply2x2CS(
+                        context.cmd,
+                        workingExecuteIndirectBuffer: data.WorkingExecuteIndirectBuffer,
+                        outColor: data.OutColor,
+                        workingControlBuffer: data.WorkingControlBuffer,
+                        workingDeferredBlendItemList: data.WorkingDeferredBlendItemList,
+                        workingDeferredBlendItemListHeads: data.WorkingDeferredBlendItemListHeads,
+                        workingDeferredBlendLocationList: data.WorkingDeferredBlendLocationList
                     );
                 });
         }
