@@ -1,6 +1,6 @@
-#if PLATFORM_STANDALONE_OSX
+//#if PLATFORM_STANDALONE_OSX
 #define TEXTURE_ATOMIC_NOT_SUPPORTED
-#endif
+//#endif
 
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;

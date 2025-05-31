@@ -55,10 +55,11 @@ namespace CMAA2.Core
             var colorBackBufferDesc = new TextureDesc(resX, resY)
             {
                 name = "_ColorBackBufferRW",
-                format = GraphicsFormatUtility.GetGraphicsFormat(
-                    RenderTextureFormat.ARGBFloat,
-                    RenderTextureReadWrite.Linear
-                ),
+                format = resourceData.cameraColor.GetDescriptor(renderGraph).colorFormat,
+                //GraphicsFormatUtility.GetGraphicsFormat(
+                //    resourceData.cameraColor.GetDescriptor(renderGraph).colorFormat,
+                //    RenderTextureReadWrite.Linear
+                //),
                 enableRandomWrite = true,
             };
             passData.ColorBackBuffer = builder.CreateTransientTexture(colorBackBufferDesc);
