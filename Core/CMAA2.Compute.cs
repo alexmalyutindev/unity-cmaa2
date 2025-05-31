@@ -41,12 +41,14 @@ namespace CMAA2.Core
 
             cmd.BeginSample(sampleName);
 
-            Set(cmd, kernelId, "g_inoutColorReadonly", inColorTexture);
-            Set(cmd, kernelId, "g_workingEdges", workingEdges);
+            Bind(cmd, kernelId, "g_inoutColorReadonly", inColorTexture);
+            Bind(cmd, kernelId, "g_workingEdges", workingEdges);
 
-            Set(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
-            Set(cmd, kernelId, "g_workingDeferredBlendItemListHeads", workingDeferredBlendItemListHeads.Handle);
-            Set(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
+            Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+
+            Bind(cmd, "g_workingDeferredBlendItemListHeads_Width", workingDeferredBlendItemListHeads.Width);
+            workingDeferredBlendItemListHeads.Bind(cmd, _compute, kernelId, "g_workingDeferredBlendItemListHeads");
 
             // TODO: ThreadGroups count!
             int csOutputKernelSizeX = (int)(_edgesColor2x2TreadGroupSize.X - 2); // m_csInputKernelSizeX - 2;
@@ -75,18 +77,18 @@ namespace CMAA2.Core
 
             cmd.BeginSample(sampleName);
 
-            Set(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+            Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
 
             // TODO: Remove passing unnecessary vectors!
-            Set(cmd, "g_workingDeferredBlendLocationList_Dim", new Vector4(workingDeferredBlendLocationListSize, 0));
-            Set(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+            Bind(cmd, "g_workingDeferredBlendLocationList_Dim", new Vector4(workingDeferredBlendLocationListSize, 0));
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
 
             // TODO: Remove passing unnecessary vectors!
-            Set(cmd, "g_workingShapeCandidates_Dim", new Vector4(workingShapeCandidatesSize, 0));
-            Set(cmd, kernelId, "g_workingShapeCandidates", workingExecuteIndirectBuffer);
+            Bind(cmd, "g_workingShapeCandidates_Dim", new Vector4(workingShapeCandidatesSize, 0));
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingExecuteIndirectBuffer);
 
             // Out
-            Set(cmd, kernelId, "g_workingExecuteIndirectBuffer", workingExecuteIndirectBuffer);
+            Bind(cmd, kernelId, "g_workingExecuteIndirectBuffer", workingExecuteIndirectBuffer);
 
             // TODO: ThreadGroups count!
             cmd.DispatchCompute(_compute, kernelId, threadGroupsX, threadGroupsY, 1);
@@ -118,17 +120,17 @@ namespace CMAA2.Core
 
             cmd.BeginSample(sampleName);
 
-            Set(cmd, kernelId, "g_inoutColorReadonly", inColor);
-            Set(cmd, kernelId, "g_workingEdges", workingEdges);
+            Bind(cmd, kernelId, "g_inoutColorReadonly", inColor);
+            Bind(cmd, kernelId, "g_workingEdges", workingEdges);
 
-            Set(cmd, kernelId, "g_workingDeferredBlendItemListHeads", workingDeferredBlendItemListHeads.Handle);
             // NOTE: Size only needed on platforms that don't support texture's atomics operations.
-            Set(cmd, "g_workingDeferredBlendItemListHeads_Size", workingDeferredBlendItemListHeads.Size);
+            Bind(cmd, "g_workingDeferredBlendItemListHeads_Width", workingDeferredBlendItemListHeads.Width);
+            workingDeferredBlendItemListHeads.Bind(cmd, _compute, kernelId, "g_workingDeferredBlendItemListHeads");
 
-            Set(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
-            Set(cmd, kernelId, "g_workingDeferredBlendItemList", workingDeferredBlendItemList);
-            Set(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
-            Set(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
+            Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+            Bind(cmd, kernelId, "g_workingDeferredBlendItemList", workingDeferredBlendItemList);
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+            Bind(cmd, kernelId, "g_workingShapeCandidates", workingShapeCandidates);
 
             // TODO: ThreadGroups count!
             // cmd.DispatchCompute(_compute, kernelId, 1, 1, 1);
@@ -151,36 +153,38 @@ namespace CMAA2.Core
 
             cmd.BeginSample(sampleName);
 
-            Set(cmd, kernelId, "g_inoutColorWriteonly", outColor);
-            Set(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
-            Set(cmd, kernelId, "g_workingDeferredBlendItemList", workingDeferredBlendItemList);
-            Set(cmd, kernelId, "g_workingDeferredBlendItemListHeads", workingDeferredBlendItemListHeads);
-            Set(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
+            Bind(cmd, kernelId, "g_inoutColorWriteonly", outColor);
+            Bind(cmd, kernelId, "g_workingControlBuffer", workingControlBuffer);
+            Bind(cmd, kernelId, "g_workingDeferredBlendItemList", workingDeferredBlendItemList);
+
+            // NOTE: Size only needed on platforms that don't support texture's atomics operations.
+            Bind(cmd, "g_workingDeferredBlendItemListHeads_Width", workingDeferredBlendItemListHeads.Width);
+            workingDeferredBlendItemListHeads.Bind(cmd, _compute, kernelId, "g_workingDeferredBlendItemListHeads");
+
+            Bind(cmd, kernelId, "g_workingDeferredBlendLocationList", workingDeferredBlendLocationList);
             cmd.DispatchCompute(_compute, kernelId, workingExecuteIndirectBuffer, 0);
 
             cmd.EndSample(sampleName);
         }
 
-        private void Set(IComputeCommandBuffer cmd, string name, Vector4 vector)
+        private void Bind(IComputeCommandBuffer cmd, string name, int value)
+        {
+            cmd.SetComputeIntParam(_compute, name, value);
+        }
+
+        private void Bind(IComputeCommandBuffer cmd, string name, Vector4 vector)
         {
             cmd.SetComputeVectorParam(_compute, name, vector);
         }
 
-        private void Set(IComputeCommandBuffer cmd, int kernelId, string name, TextureHandle textureHandle)
+        private void Bind(IComputeCommandBuffer cmd, int kernelId, string name, TextureHandle textureHandle)
         {
             cmd.SetComputeTextureParam(_compute, kernelId, name, textureHandle);
         }
 
-        private void Set(IComputeCommandBuffer cmd, int kernelId, string name, BufferHandle bufferHandle)
+        private void Bind(IComputeCommandBuffer cmd, int kernelId, string name, BufferHandle bufferHandle)
         {
             cmd.SetComputeBufferParam(_compute, kernelId, name, bufferHandle);
-        }
-
-        private void Set(IComputeCommandBuffer cmd, int kernelId, string name, AtomicTextureHandle bufferHandle)
-        {
-            cmd.SetComputeBufferParam(_compute, kernelId, name, bufferHandle.Handle);
-            // TODO: Fix string allocation!
-            cmd.SetComputeVectorParam(_compute, name + "_Size", new Vector4(bufferHandle.Width, bufferHandle.Height));
         }
     }
 

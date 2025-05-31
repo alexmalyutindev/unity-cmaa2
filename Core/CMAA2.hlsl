@@ -182,7 +182,7 @@ RWStructuredBuffer<uint2>       g_workingDeferredBlendItemList      : register( 
 RWTexture2D<uint>               g_workingDeferredBlendItemListHeads : register( u5 );
 #else // NOTE: Metal doesn't support texture atomics! Using StructuredBuffer instead.
 RWStructuredBuffer<uint>        g_workingDeferredBlendItemListHeads : register( u5 );
-float2                          g_workingDeferredBlendItemListHeads_Size;
+uint                            g_workingDeferredBlendItemListHeads_Width;                  // Width to calc flat index
 #endif
 RWByteAddressBuffer             g_workingControlBuffer              : register( u6 );
 RWByteAddressBuffer             g_workingExecuteIndirectBuffer      : register( u7 );
@@ -366,7 +366,7 @@ void StoreColorSample( uint2 pixelPos, lpfloat3 color, bool isComplexShape, uint
     #ifndef SHADER_API_METAL
     InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPos ], counterIndexWithHeader, originalIndex );
     #else
-    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Size.x;
+    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Width;
     InterlockedExchange( g_workingDeferredBlendItemListHeads[ quadPosFlat ], counterIndexWithHeader, originalIndex );
     #endif
     g_workingDeferredBlendItemList[counterIndex] = uint2( originalIndex, InternalPackColor( color ) );
@@ -755,7 +755,7 @@ void EdgesColor2x2CS( uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_Group
             #ifndef SHADER_API_METAL
                 g_workingDeferredBlendItemListHeads[ uint2( pixelPos ) / 2 ] = 0xFFFFFFFF;
             #else
-                uint quadPosFlat = pixelPos.x / 2 + pixelPos.y / 2 * g_workingDeferredBlendItemListHeads_Size.x;
+                uint quadPosFlat = pixelPos.x / 2 + pixelPos.y / 2 * g_workingDeferredBlendItemListHeads_Width;
                 g_workingDeferredBlendItemListHeads[ quadPosFlat ] = 0xFFFFFFFF;
             #endif 
     #endif
@@ -1371,7 +1371,7 @@ void DeferredColorApply2x2CS( uint3 dispatchThreadID : SV_DispatchThreadID, uint
 #ifndef SHADER_API_METAL
     uint counterIndexWithHeader = g_workingDeferredBlendItemListHeads[quadPos];
 #else
-    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Size.x;
+    uint quadPosFlat = quadPos.x + quadPos.y * g_workingDeferredBlendItemListHeads_Width;
     uint counterIndexWithHeader = g_workingDeferredBlendItemListHeads[quadPosFlat];
 #endif
 
