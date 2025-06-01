@@ -1,6 +1,7 @@
-//#if PLATFORM_STANDALONE_OSX
-#define TEXTURE_ATOMIC_NOT_SUPPORTED
-//#endif
+#define DONT_USE_TEXTURE_ATOMICS
+#if PLATFORM_STANDALONE_OSX || DONT_USE_TEXTURE_ATOMICS
+#define TEXTURE_ATOMICS_NOT_SUPPORTED
+#endif
 
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -15,7 +16,7 @@ namespace CMAA2.Core
 
         public int Width;
         public int Height;
-#if TEXTURE_ATOMIC_NOT_SUPPORTED
+#if TEXTURE_ATOMICS_NOT_SUPPORTED
         public BufferHandle Handle;
 #else
         public TextureHandle Handle;
@@ -29,7 +30,7 @@ namespace CMAA2.Core
                 Height = height,
             };
 
-#if TEXTURE_ATOMIC_NOT_SUPPORTED
+#if TEXTURE_ATOMICS_NOT_SUPPORTED
             var desc = new BufferDesc(width * height, sizeof(uint), GraphicsBuffer.Target.Structured);
             handle.Handle = builder.CreateTransientBuffer(desc);
             builder.UseBuffer(handle.Handle, AccessFlags.ReadWrite);
@@ -47,7 +48,7 @@ namespace CMAA2.Core
 
         public void Bind(IComputeCommandBuffer cmd, ComputeShader compute, int kernelIndex, string name)
         {
-#if TEXTURE_ATOMIC_NOT_SUPPORTED
+#if TEXTURE_ATOMICS_NOT_SUPPORTED
             cmd.SetComputeBufferParam(compute, kernelIndex, name, Handle);
 #else
             cmd.SetComputeTextureParam(compute, kernelIndex, name, Handle);

@@ -1,6 +1,5 @@
 #define CMAA2_REQUIRE_UNITY_FIX
 
-using System;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -56,15 +55,11 @@ namespace CMAA2.Core
             {
                 name = "_ColorBackBufferRW",
                 format = resourceData.cameraColor.GetDescriptor(renderGraph).colorFormat,
-                //GraphicsFormatUtility.GetGraphicsFormat(
-                //    resourceData.cameraColor.GetDescriptor(renderGraph).colorFormat,
-                //    RenderTextureReadWrite.Linear
-                //),
                 enableRandomWrite = true,
             };
             passData.ColorBackBuffer = builder.CreateTransientTexture(colorBackBufferDesc);
             builder.UseTexture(passData.ColorBackBuffer, AccessFlags.ReadWrite);
-            
+
             // create all temporary storage buffers
             {
                 int edgesResX = resX;
@@ -155,11 +150,12 @@ namespace CMAA2.Core
                 var desc = new BufferDesc(
                     count: 4,
                     stride: sizeof(uint),
-                    target: GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments);
+                    target: GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments
+                );
                 passData.WorkingExecuteIndirectBuffer = builder.CreateTransientBuffer(desc: in desc);
-                #if CMAA2_REQUIRE_UNITY_FIX
+#if CMAA2_REQUIRE_UNITY_FIX
                 builder.UseBuffer(passData.WorkingExecuteIndirectBuffer, AccessFlags.ReadWrite);
-                #endif
+#endif
             }
 
             builder.AllowPassCulling(false);

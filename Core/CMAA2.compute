@@ -17,6 +17,15 @@
 // originally developed and distributed by Intel Corporation under the Apache 2.0 license.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(SHADER_API_METAL) || defined(SHADER_API_GLES)
+#define PLATFORM_NO_TEXTURE_LOAD_OFFSET
+#define PLATFORM_NO_TEXTURE_ATOMICS
+#endif
+
+#if SHADER_API_D3D11 || SHADER_API_D3D11_9X
+#define PLATFORM_NO_TEXTURE_ATOMICS
+#endif
+
 #define CMAA2_UAV_STORE_TYPED               1   // use typed UAV store
 #define CMAA2_UAV_STORE_CONVERT_TO_SRGB     0   // no need to convert to SRGB - R11G11B10_FLOAT does not use SRGB encoding
 #define CMAA2_UAV_STORE_TYPED_UNORM_FLOAT   0   // not required for non-float semantics correctness (RWTexture2D<float4>)
