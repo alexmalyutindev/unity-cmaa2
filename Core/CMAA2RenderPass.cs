@@ -1,4 +1,5 @@
-using System;
+#define CMAA2_REQUIRE_UNITY_FIX
+
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -53,13 +54,11 @@ namespace CMAA2.Core
             var colorBackBufferDesc = new TextureDesc(resX, resY)
             {
                 name = "_ColorBackBufferRW",
-                format = GraphicsFormatUtility.GetGraphicsFormat(
-                    RenderTextureFormat.ARGBFloat,
-                    RenderTextureReadWrite.Linear
-                ),
+                format = resourceData.cameraColor.GetDescriptor(renderGraph).colorFormat,
                 enableRandomWrite = true,
             };
             passData.ColorBackBuffer = builder.CreateTransientTexture(colorBackBufferDesc);
+            builder.UseTexture(passData.ColorBackBuffer, AccessFlags.ReadWrite);
 
             // create all temporary storage buffers
             {
@@ -78,7 +77,7 @@ namespace CMAA2.Core
                     enableRandomWrite = true,
                 };
                 passData.WorkingEdges = builder.CreateTransientTexture(desc: in uintUAVTextureDesc);
-
+                builder.UseTexture(passData.WorkingEdges, AccessFlags.ReadWrite);
 
                 passData.WorkingDeferredBlendItemListHeads = AtomicTextureHandle.CreateTransientUint(
                     builder,
@@ -103,6 +102,9 @@ namespace CMAA2.Core
                     builder.CreateTransientBuffer(desc: in desc),
                     desc.count
                 );
+#if CMAA2_REQUIRE_UNITY_FIX
+                builder.UseBuffer(passData.WorkingShapeCandidates.Buffer, AccessFlags.ReadWrite);
+#endif
             }
 
             // Create buffer for storing linked list of all output values to blend
@@ -113,6 +115,9 @@ namespace CMAA2.Core
                     GraphicsBuffer.Target.Structured
                 );
                 passData.WorkingDeferredBlendItemList = builder.CreateTransientBuffer(desc);
+#if CMAA2_REQUIRE_UNITY_FIX
+                builder.UseBuffer(passData.WorkingDeferredBlendItemList, AccessFlags.ReadWrite);
+#endif
             }
 
             // Create buffer for storing a list of coordinates of linked list heads quads, to allow for combined processing in the last step
@@ -126,12 +131,18 @@ namespace CMAA2.Core
                     builder.CreateTransientBuffer(desc),
                     desc.count
                 );
+#if CMAA2_REQUIRE_UNITY_FIX
+                builder.UseBuffer(passData.WorkingDeferredBlendLocationList.Buffer, AccessFlags.ReadWrite);
+#endif
             }
 
             // Control buffer (always the same size, doesn't need re-creating but oh well)
             {
                 var desc = new BufferDesc(count: 16, stride: sizeof(uint), target: GraphicsBuffer.Target.Raw);
                 passData.WorkingControlBuffer = builder.CreateTransientBuffer(desc: in desc);
+#if CMAA2_REQUIRE_UNITY_FIX
+                builder.UseBuffer(passData.WorkingControlBuffer, AccessFlags.ReadWrite);
+#endif
             }
 
             // Control buffer (always the same size, doesn't need re-creating but oh well)
@@ -139,8 +150,12 @@ namespace CMAA2.Core
                 var desc = new BufferDesc(
                     count: 4,
                     stride: sizeof(uint),
-                    target: GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments);
+                    target: GraphicsBuffer.Target.Raw | GraphicsBuffer.Target.IndirectArguments
+                );
                 passData.WorkingExecuteIndirectBuffer = builder.CreateTransientBuffer(desc: in desc);
+#if CMAA2_REQUIRE_UNITY_FIX
+                builder.UseBuffer(passData.WorkingExecuteIndirectBuffer, AccessFlags.ReadWrite);
+#endif
             }
 
             builder.AllowPassCulling(false);
